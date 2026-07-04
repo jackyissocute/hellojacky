@@ -8,18 +8,18 @@ export type Project = {
 }
 
 export const siteProfile = {
-  name: 'darshan paccha',
+  name: 'jacky lin',
   avatarAlt: 'avatar',
   nav: [
     { label: '/home', href: '/' },
     { label: '/projects', href: '/projects' },
   ],
   social: [
-    { label: 'github', href: 'https://github.com/d1rshan', icon: 'github' as const },
-    { label: 'email', href: 'mailto:darshan.paccha@gmail.com', icon: 'email' as const },
-    { label: 'discord', href: 'https://discord.gg/22rFFr8n', icon: 'discord' as const },
-    { label: 'linkedin', href: 'https://www.linkedin.com/in/darshan-paccha/', icon: 'linkedin' as const },
-    { label: 'x', href: 'https://x.com/d1rshan', icon: 'x' as const },
+    { label: 'github', href: 'https://github.com/jackyissocute', icon: 'github' as const },
+    { label: 'email', href: 'mailto:jackyissocute@proton.me', icon: 'email' as const },
+    { label: 'discord', href: 'https://discord.gg/qG2NhuAfUw', icon: 'discord' as const },
+    { label: 'linkedin', href: 'https://www.linkedin.com/in/jackylinhelpsualot', icon: 'linkedin' as const },
+    { label: 'x', href: 'https://x.com/jackyissocute', icon: 'x' as const },
   ],
   resumeHref: '/resume',
 }
@@ -27,22 +27,18 @@ export const siteProfile = {
 export const aboutContent = {
   paragraphs: [
     {
-      lines: [
-        '19 y/o cs undergrad',
-        'i build things i wish existed, and they often end up being useful to other people too.',
-      ],
+      lines: ["duke kunshan 27' undergrad"],
     },
     {
       lines: [
-        'i work across the stack: web, mobile, and the occasional clis/tuis.',
-        'most of what i make ends up open source.',
+        'working in molecular bioscience, biophysics, medical physics 3D Modeling, and protein engineering',
       ],
     },
     {
-      lines: ['into linux, ricing my setup, and understanding how things work past the surface.'],
+      lines: ['now into vibe coding, solving real life problems.'],
     },
   ],
-  footer: 'open to work <3',
+  footer: "'what i cannot create, i do not understand.'",
 }
 
 export const projectsContent = {
