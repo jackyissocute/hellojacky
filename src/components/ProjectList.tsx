@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Project } from '../content/siteContent'
 import { AccentFuzzyHeading } from './AccentFuzzyHeading'
+import { AccentFuzzyText } from './AccentFuzzyText'
 
 type ProjectListProps = {
   projects: Project[]
@@ -20,7 +21,13 @@ export function ProjectList({ projects, variant, viewAllHref }: ProjectListProps
               rel="noopener noreferrer"
               className="site-project-link cursor-target"
             >
-              <h3 className="site-project-name">{project.name}</h3>
+              <AccentFuzzyText
+                as="h3"
+                text={project.name}
+                className="site-project-name site-project-name-fuzzy"
+                fontSize="1.25rem"
+                fontWeight={600}
+              />
               <p className="site-project-description">{project.description}</p>
               <p className="site-project-stack">* {project.language}</p>
             </a>
