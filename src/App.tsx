@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { flushSync } from 'react-dom'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AsciiInteractiveBackground } from './components/AsciiInteractiveBackground'
 import { SiteLayout } from './components/SiteLayout'
@@ -13,9 +14,15 @@ function App() {
   const [themeIndex, setThemeIndex] = useState(0)
   const accent = ACCENT_THEMES[themeIndex]
 
+  const handleCycleTheme = () => {
+    flushSync(() => {
+      setThemeIndex((current) => (current + 1) % ACCENT_THEMES.length)
+    })
+  }
+
   return (
     <BrowserRouter basename={ROUTER_BASENAME}>
-      <FuzzyBurstProvider accent={accent} themeSignal={themeIndex}>
+      <FuzzyBurstProvider accent={accent}>
         <div className="app-shell">
           <AsciiInteractiveBackground />
           <TargetCursor
@@ -27,10 +34,7 @@ function App() {
           <Routes>
             <Route
               element={
-                <SiteLayout
-                  accent={accent}
-                  onCycleTheme={() => setThemeIndex((current) => (current + 1) % ACCENT_THEMES.length)}
-                />
+                <SiteLayout accent={accent} onCycleTheme={handleCycleTheme} />
               }
             >
               <Route index element={<HomePage />} />

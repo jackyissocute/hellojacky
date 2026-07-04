@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { PUBLIC_ASSETS } from '../config/site'
+import { useFuzzyBurst } from '../context/FuzzyBurstContext'
 import { repoAsset } from '../lib/repoAsset'
 import { siteProfile } from '../content/siteContent'
 import { AccentFuzzyHeading } from './AccentFuzzyHeading'
@@ -62,6 +63,7 @@ function isNavActive(pathname: string, href: string) {
 
 export function SiteHeader({ accent, onCycleTheme }: SiteHeaderProps) {
   const { pathname } = useLocation()
+  const { triggerBurst } = useFuzzyBurst()
 
   return (
     <header className="site-card site-header">
@@ -89,6 +91,11 @@ export function SiteHeader({ accent, onCycleTheme }: SiteHeaderProps) {
                     ? 'site-nav-link site-nav-link-active cursor-target'
                     : 'site-nav-link cursor-target'
                 }
+                onPointerDown={() => {
+                  if (!active) {
+                    triggerBurst()
+                  }
+                }}
               >
                 {label}
               </Link>
@@ -98,7 +105,11 @@ export function SiteHeader({ accent, onCycleTheme }: SiteHeaderProps) {
             type="button"
             className="site-theme-button cursor-target"
             aria-label="Cycle theme"
-            onClick={onCycleTheme}
+            onMouseDown={(event) => {
+              event.preventDefault()
+              onCycleTheme()
+              triggerBurst()
+            }}
           >
             {accent}
           </button>

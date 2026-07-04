@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Project } from '../content/siteContent'
+import { useFuzzyBurst } from '../context/FuzzyBurstContext'
 import { AccentFuzzyHeading } from './AccentFuzzyHeading'
 import { AccentFuzzyText } from './AccentFuzzyText'
 
@@ -10,6 +11,8 @@ type ProjectListProps = {
 }
 
 export function ProjectList({ projects, variant, viewAllHref }: ProjectListProps) {
+  const { triggerBurst } = useFuzzyBurst()
+
   if (variant === 'page') {
     return (
       <div className="site-project-list site-project-list-page">
@@ -42,7 +45,11 @@ export function ProjectList({ projects, variant, viewAllHref }: ProjectListProps
       <div className="site-projects-header">
         <AccentFuzzyHeading text="projects" />
         {viewAllHref ? (
-          <Link to={viewAllHref} className="site-view-all cursor-target">
+          <Link
+            to={viewAllHref}
+            className="site-view-all cursor-target"
+            onPointerDown={triggerBurst}
+          >
             view all <span className="site-arrow">→</span>
           </Link>
         ) : null}
