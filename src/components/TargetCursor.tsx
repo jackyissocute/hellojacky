@@ -10,8 +10,6 @@ type TargetCursorProps = {
   parallaxOn?: boolean
   cursorColor?: string
   cursorColorOnTarget?: string
-  /** Extra px around targets where lock-on begins (magnetic pull) */
-  attractionRadius?: number
 }
 
 const getContainingBlock = (element: HTMLElement | null): HTMLElement | null => {
@@ -40,16 +38,6 @@ const getContainingBlockOffset = (block: HTMLElement | null) => {
   return { x: rect.left + block.clientLeft, y: rect.top + block.clientTop }
 }
 
-const distanceToRect = (x: number, y: number, rect: DOMRect, padding: number) => {
-  const left = rect.left - padding
-  const right = rect.right + padding
-  const top = rect.top - padding
-  const bottom = rect.bottom + padding
-  const dx = x < left ? left - x : x > right ? x - right : 0
-  const dy = y < top ? top - y : y > bottom ? y - bottom : 0
-  return Math.hypot(dx, dy)
-}
-
 const getCornerTargets = (
   rect: DOMRect,
   offsetX: number,
@@ -74,7 +62,6 @@ export default function TargetCursor({
   parallaxOn = true,
   cursorColor = '#ffffff',
   cursorColorOnTarget,
-  attractionRadius = 56,
 }: TargetCursorProps) {
   const cursorRef = useRef<HTMLDivElement>(null)
   const spinTl = useRef<gsap.core.Timeline | null>(null)
@@ -131,6 +118,7 @@ export default function TargetCursor({
     let cursorX = mouseX
     let cursorY = mouseY
     let activeTarget: Element | null = null
+    let currentLeaveHandler: (() => void) | null = null
     let targetCornerPositions: Array<{ x: number; y: number }> | null = null
     let strength = 0
     let strengthTween: gsap.core.Tween | null = null
@@ -210,20 +198,11 @@ export default function TargetCursor({
       })
     }
 
-    const findNearestTarget = (x: number, y: number, radius: number) => {
-      const candidates = document.querySelectorAll<HTMLElement>(targetSelector)
-      let nearest: Element | null = null
-      let nearestDistance = radius
-
-      candidates.forEach((candidate) => {
-        const distance = distanceToRect(x, y, candidate.getBoundingClientRect(), 0)
-        if (distance <= nearestDistance) {
-          nearestDistance = distance
-          nearest = candidate
-        }
-      })
-
-      return nearest
+    const cleanupTarget = (target: Element) => {
+      if (currentLeaveHandler) {
+        target.removeEventListener('mouseleave', currentLeaveHandler)
+      }
+      currentLeaveHandler = null
     }
 
     const resumeSpin = () => {
@@ -282,6 +261,7 @@ export default function TargetCursor({
       }
 
       if (activeTarget) {
+        cleanupTarget(activeTarget)
         strengthTween?.kill()
         strength = 0
       }
@@ -316,28 +296,27 @@ export default function TargetCursor({
           },
         },
       )
-    }
 
-    const updateProximityTarget = (x: number, y: number) => {
-      if (activeTarget) {
-        const detachDistance = attractionRadius + 12
-        const distance = distanceToRect(
-          x,
-          y,
-          activeTarget.getBoundingClientRect(),
-          0,
-        )
-        if (distance <= detachDistance) {
-          refreshTargetCorners()
-          return
-        }
+      const leaveHandler = () => {
+        cleanupTarget(target)
         deactivateTarget()
-        return
       }
 
-      const nearest = findNearestTarget(x, y, attractionRadius)
-      if (nearest) {
-        activateTarget(nearest)
+      currentLeaveHandler = leaveHandler
+      target.addEventListener('mouseleave', leaveHandler)
+    }
+
+    const enterHandler = (e: MouseEvent) => {
+      const directTarget = e.target
+      if (!(directTarget instanceof Element)) return
+
+      let current: Element | null = directTarget
+      while (current && current !== document.body) {
+        if (current.matches(targetSelector)) {
+          activateTarget(current)
+          return
+        }
+        current = current.parentElement
       }
     }
 
@@ -356,11 +335,22 @@ export default function TargetCursor({
       mouseX = e.clientX
       mouseY = e.clientY
       lastMouseRef.current = { x: e.clientX, y: e.clientY }
-      updateProximityTarget(e.clientX, e.clientY)
     }
 
     const scrollHandler = () => {
-      if (activeTarget) refreshTargetCorners()
+      if (!activeTarget || !cursorRef.current) return
+      refreshTargetCorners()
+      const { x: offsetX, y: offsetY } = getOffset()
+      const pointerX = (gsap.getProperty(cursorRef.current, 'x') as number) + offsetX
+      const pointerY = (gsap.getProperty(cursorRef.current, 'y') as number) + offsetY
+      const elementUnderMouse = document.elementFromPoint(pointerX, pointerY)
+      const isStillOverTarget =
+        elementUnderMouse &&
+        (elementUnderMouse === activeTarget ||
+          elementUnderMouse.closest(targetSelector) === activeTarget)
+      if (!isStillOverTarget && currentLeaveHandler) {
+        currentLeaveHandler()
+      }
     }
 
     const mouseDownHandler = () => {
@@ -376,6 +366,7 @@ export default function TargetCursor({
     }
 
     window.addEventListener('mousemove', moveHandler, { passive: true })
+    window.addEventListener('mouseover', enterHandler, { passive: true })
     window.addEventListener('scroll', scrollHandler, { passive: true })
     window.addEventListener('mousedown', mouseDownHandler)
     window.addEventListener('mouseup', mouseUpHandler)
@@ -385,11 +376,13 @@ export default function TargetCursor({
       gsap.ticker.remove(tick)
       strengthTween?.kill()
       window.removeEventListener('mousemove', moveHandler)
+      window.removeEventListener('mouseover', enterHandler)
       window.removeEventListener('scroll', scrollHandler)
       window.removeEventListener('mousedown', mouseDownHandler)
       window.removeEventListener('mouseup', mouseUpHandler)
       window.removeEventListener('resize', scrollHandler)
       if (resumeTimeout) clearTimeout(resumeTimeout)
+      if (activeTarget) cleanupTarget(activeTarget)
       spinTl.current?.kill()
       document.body.style.cursor = originalCursor
     }
@@ -400,7 +393,6 @@ export default function TargetCursor({
     isMobile,
     hoverDuration,
     parallaxOn,
-    attractionRadius,
   ])
 
   useEffect(() => {

@@ -16,7 +16,6 @@ function App() {
         hideDefaultCursor
         parallaxOn
         hoverDuration={0.12}
-        attractionRadius={64}
         cursorColorOnTarget={accent}
       />
       <SiteContent
