@@ -121,7 +121,8 @@ export function SiteHeader({ accent, onCycleTheme }: SiteHeaderProps) {
           <SocialLinks className="site-social-link" />
         </div>
         <a
-          href={siteProfile.resumeHref}
+          href={repoAsset(PUBLIC_ASSETS.resume)}
+          download={PUBLIC_ASSETS.resume}
           target="_blank"
           rel="noopener noreferrer"
           className="site-resume-link cursor-target"

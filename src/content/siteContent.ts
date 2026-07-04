@@ -21,7 +21,6 @@ export const siteProfile = {
     { label: 'linkedin', href: 'https://www.linkedin.com/in/jackylinhelpsualot', icon: 'linkedin' as const },
     { label: 'x', href: 'https://x.com/jackyissocute', icon: 'x' as const },
   ],
-  resumeHref: '/resume',
 }
 
 export const aboutContent = {

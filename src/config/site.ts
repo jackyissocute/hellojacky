@@ -17,4 +17,5 @@ export const PUBLIC_ASSETS = {
   profilePhoto: 'jacky-lin-profile.jpg',
   favicon: 'jacky-lin.png',
   icons: 'icons.svg',
+  resume: 'Jacky_Lin_Resume_2026_Summer_Polished.pdf',
 } as const
