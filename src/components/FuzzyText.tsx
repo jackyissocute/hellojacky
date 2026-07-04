@@ -161,6 +161,9 @@ const FuzzyText = ({
       canvas.height = tightHeight + verticalMargin * 2
       ctx.translate(horizontalMargin, verticalMargin)
 
+      const textAlignOffset = horizontalMargin + xOffset - actualLeft
+      canvas.style.marginLeft = `-${textAlignOffset}px`
+
       const interactiveLeft = horizontalMargin + xOffset
       const interactiveTop = verticalMargin
       const interactiveRight = interactiveLeft + textBoundingWidth
