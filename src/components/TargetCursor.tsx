@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ASCII_PERSON_HOVER_EVENT, type AsciiPersonHoverDetail } from '../lib/asciiPersonHover'
+import {
+  getViewAllProximityTarget,
+  VIEW_ALL_SELECTOR,
+} from '../lib/viewAllProximity'
 import './TargetCursor.css'
 
 type TargetCursorProps = {
@@ -91,29 +95,25 @@ export default function TargetCursor({
   useEffect(() => {
     if (isMobile || !cursorRef.current) return
 
-    const cursor = cursorRef.current
-    const onPersonHover = (event: Event) => {
-      const { active } = (event as CustomEvent<AsciiPersonHoverDetail>).detail
-      cursor.style.opacity = active ? '0' : '1'
-    }
-
-    window.addEventListener(ASCII_PERSON_HOVER_EVENT, onPersonHover as EventListener)
-
-    return () => {
-      window.removeEventListener(ASCII_PERSON_HOVER_EVENT, onPersonHover as EventListener)
-      cursor.style.opacity = '1'
-    }
-  }, [isMobile])
-
-  useEffect(() => {
-    if (isMobile || !cursorRef.current) return
-
     const originalCursor = document.body.style.cursor
     if (hideDefaultCursor) {
       document.body.style.cursor = 'none'
     }
 
     const cursor = cursorRef.current
+    let personHoverActive = false
+
+    const syncCursorVisibility = () => {
+      cursor.style.opacity = personHoverActive && !isTargetingRef.current ? '0' : '1'
+    }
+
+    const onPersonHover = (event: Event) => {
+      const { active } = (event as CustomEvent<AsciiPersonHoverDetail>).detail
+      personHoverActive = active
+      syncCursorVisibility()
+    }
+
+    window.addEventListener(ASCII_PERSON_HOVER_EVENT, onPersonHover as EventListener)
     const corners = Array.from(cursor.querySelectorAll<HTMLDivElement>('.target-cursor-corner'))
     const containingBlock = getContainingBlock(cursor)
     const getOffset = () => getContainingBlockOffset(containingBlock)
@@ -218,6 +218,15 @@ export default function TargetCursor({
       isTargetingRef.current = false
       spinPending = true
       applyTargetColors(cursorColorRef.current)
+      syncCursorVisibility()
+    }
+
+    const resolveHoverTarget = (x: number, y: number): Element | null => {
+      const el = document.elementFromPoint(x, y)
+      const direct = el?.closest(targetSelector)
+      if (direct) return direct
+
+      return getViewAllProximityTarget(x, y)
     }
 
     const activateTarget = (target: Element) => {
@@ -244,8 +253,15 @@ export default function TargetCursor({
         applyTargetColors(cursorColorOnTargetRef.current)
       }
 
+      syncCursorVisibility()
+
       const leaveHandler = () => {
         cleanupTarget(target)
+        const stillTarget = resolveHoverTarget(lastMouseRef.current.x, lastMouseRef.current.y)
+        if (stillTarget) {
+          activateTarget(stillTarget)
+          return
+        }
         deactivateTarget()
       }
 
@@ -316,26 +332,32 @@ export default function TargetCursor({
 
     gsap.ticker.add(tick)
 
+    const syncActiveTarget = (x: number, y: number) => {
+      const nextTarget = resolveHoverTarget(x, y)
+
+      if (nextTarget) {
+        activateTarget(nextTarget)
+        return
+      }
+
+      if (activeTarget?.matches(VIEW_ALL_SELECTOR)) {
+        cleanupTarget(activeTarget)
+        deactivateTarget()
+      }
+    }
+
     const moveHandler = (e: MouseEvent) => {
       mouseX = e.clientX
       mouseY = e.clientY
       lastMouseRef.current = { x: e.clientX, y: e.clientY }
+      syncActiveTarget(mouseX, mouseY)
     }
 
     const scrollHandler = () => {
-      if (!activeTarget || !cursorRef.current) return
-      refreshTargetCorners()
-      const { x: offsetX, y: offsetY } = getOffset()
-      const pointerX = (gsap.getProperty(cursorRef.current, 'x') as number) + offsetX
-      const pointerY = (gsap.getProperty(cursorRef.current, 'y') as number) + offsetY
-      const elementUnderMouse = document.elementFromPoint(pointerX, pointerY)
-      const isStillOverTarget =
-        elementUnderMouse &&
-        (elementUnderMouse === activeTarget ||
-          elementUnderMouse.closest(targetSelector) === activeTarget)
-      if (!isStillOverTarget && currentLeaveHandler) {
-        currentLeaveHandler()
+      if (activeTarget) {
+        refreshTargetCorners()
       }
+      syncActiveTarget(lastMouseRef.current.x, lastMouseRef.current.y)
     }
 
     const mouseDownHandler = () => {
@@ -368,6 +390,7 @@ export default function TargetCursor({
 
     return () => {
       gsap.ticker.remove(tick)
+      window.removeEventListener(ASCII_PERSON_HOVER_EVENT, onPersonHover as EventListener)
       window.removeEventListener('mousemove', moveHandler)
       window.removeEventListener('mouseover', enterHandler)
       window.removeEventListener('scroll', scrollHandler)
@@ -377,6 +400,7 @@ export default function TargetCursor({
       if (activeTarget) cleanupTarget(activeTarget)
       spinTl.current?.kill()
       document.body.style.cursor = originalCursor
+      cursor.style.opacity = '1'
     }
   }, [targetSelector, spinDuration, hideDefaultCursor, isMobile, parallaxOn])
 
