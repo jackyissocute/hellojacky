@@ -38,6 +38,10 @@ export interface AsciiBackgroundOptions {
   colorHideSpeed?: number
   /** Ripple edge wobble strength (0–1) */
   colorRippleEdgeNoise?: number
+  /** Soft feather width for color ripple frontier (px) */
+  colorRippleFeather?: number
+  colorRippleStretchX?: number
+  colorRippleStretchY?: number
 }
 
 export interface AsciiBackgroundController {
@@ -127,7 +131,10 @@ export function createAsciiBackground(
   const longPressMs = options.longPressMs ?? 380
   const colorRevealSpeed = options.colorRevealSpeed ?? 190
   const colorHideSpeed = options.colorHideSpeed ?? 320
-  const colorRippleEdgeNoise = options.colorRippleEdgeNoise ?? 0.22
+  const colorRippleEdgeNoise = options.colorRippleEdgeNoise ?? 0.34
+  const colorRippleFeather = options.colorRippleFeather ?? 78
+  const colorRippleStretchX = options.colorRippleStretchX ?? 1.1
+  const colorRippleStretchY = options.colorRippleStretchY ?? 0.88
 
   const baseRgb = parseHexColor(textColor)
 
@@ -422,15 +429,52 @@ export function createAsciiBackground(
     const cy = row * charHeight + charHeight * 0.5
     const dx = cx - originX
     const dy = cy - originY
-    const baseDist = Math.hypot(dx, dy)
+    const angle = Math.atan2(dy, dx)
+
+    const ex = dx / colorRippleStretchX
+    const ey = dy / colorRippleStretchY
+    const baseDist = Math.hypot(ex, ey)
 
     const hash = cellHash(col, row)
-    const noiseScale = Math.max(48, baseDist * 0.08)
-    const wobble = ((hash % 1000) / 1000 - 0.5) * 2 * colorRippleEdgeNoise * noiseScale
-    const angleWobble =
-      Math.sin(Math.atan2(dy, dx) * 2.9 + hash * 0.0008) * colorRippleEdgeNoise * 0.42 * noiseScale
+    const hash2 = cellHash(col + 19, row - 11)
+    const noiseScale = Math.max(60, baseDist * 0.14)
 
-    return baseDist + wobble + angleWobble
+    const wobble = ((hash % 1000) / 1000 - 0.5) * 2 * colorRippleEdgeNoise * noiseScale
+    const microWobble = (((hash >>> 8) % 1000) / 1000 - 0.5) * colorRippleEdgeNoise * noiseScale * 0.72
+    const lobe =
+      Math.sin(angle * 3.9 + hash * 0.0013) * colorRippleEdgeNoise * 0.62 * noiseScale
+    const lobe2 =
+      Math.sin(angle * 6.7 + hash2 * 0.0009 + 0.8) * colorRippleEdgeNoise * 0.34 * noiseScale
+    const timeWobble =
+      Math.sin(driftNow * 0.0045 + hash * 0.0024 + angle * 2.4) * colorRippleEdgeNoise * 26
+
+    return baseDist + wobble + microWobble + lobe + lobe2 + timeWobble
+  }
+
+  /** 0–1 strength for soft, dithered ripple frontier */
+  function rippleRevealStrength(col: number, row: number) {
+    const dist = rippleDist(col, row, rippleOriginX, rippleOriginY)
+    const core = Math.max(10, rippleRadius - colorRippleFeather)
+    const outer = rippleRadius + colorRippleFeather * 0.9
+
+    if (dist <= core) return 1
+    if (dist >= outer) return 0
+
+    const edgeT = (dist - core) / (outer - core)
+    return 1 - smoothstep(0, 1, edgeT)
+  }
+
+  function shouldRevealCell(col: number, row: number) {
+    const strength = rippleRevealStrength(col, row)
+    if (strength >= 1) return true
+    if (strength <= 0) return false
+
+    const hash = cellHash(col, row)
+    const threshold = (hash % 1000) / 1000
+    const scatter = (((hash >>> 10) % 1000) / 1000 - 0.5) * colorRippleEdgeNoise * 0.42
+    const jitter = Math.sin(driftNow * 0.006 + hash * 0.0037) * colorRippleEdgeNoise * 0.08
+
+    return threshold < clamp01(strength + scatter + jitter)
   }
 
   function isPersonCell(col: number, row: number) {
@@ -474,9 +518,10 @@ export function createAsciiBackground(
   function applyRevealStep() {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        if (!isPersonCell(col, row)) continue
-        if (rippleDist(col, row, rippleOriginX, rippleOriginY) <= rippleRadius) {
-          revealGrid[cellIndex(col, row)] = 1
+        const idx = cellIndex(col, row)
+        if (!isPersonCell(col, row) || revealGrid[idx] === 1) continue
+        if (shouldRevealCell(col, row)) {
+          revealGrid[idx] = 1
         }
       }
     }

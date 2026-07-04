@@ -28,6 +28,10 @@ export function AsciiInteractiveBackground() {
       cursorEdgeNoise: 0.2,
       cursorStretchX: 1.06,
       cursorStretchY: 0.9,
+      colorRippleEdgeNoise: 0.34,
+      colorRippleFeather: 78,
+      colorRippleStretchX: 1.1,
+      colorRippleStretchY: 0.88,
       fontWeight: 600,
     })
 
