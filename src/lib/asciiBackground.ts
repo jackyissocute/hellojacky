@@ -35,8 +35,6 @@ export interface AsciiBackgroundOptions {
   driftIntervalJitterMs?: number
   /** Only 1/driftStride cells swap; hash picks them evenly across the grid */
   driftStride?: number
-  /** Milliseconds before a press on the person counts as long-press */
-  longPressMs?: number
   /** Outward ripple speed while holding (px / s) */
   colorRevealSpeed?: number
   /** Noise dissolve rate on release (progress / s); typically faster than reveal */
@@ -142,7 +140,6 @@ export function createAsciiBackground(
   const driftIntervalMs = options.driftIntervalMs ?? 400
   const driftIntervalJitterMs = options.driftIntervalJitterMs ?? 160
   const driftStride = options.driftStride ?? 48
-  const longPressMs = options.longPressMs ?? 380
   const colorRevealSpeed = options.colorRevealSpeed ?? 190
   const colorHideSpeed = options.colorHideSpeed ?? 320
   const colorRippleEdgeNoise = options.colorRippleEdgeNoise ?? 0.34
@@ -199,10 +196,6 @@ export function createAsciiBackground(
   let rippleOriginX = 0
   let rippleOriginY = 0
   let hideProgress = 0
-
-  let longPressTimer: ReturnType<typeof setTimeout> | null = null
-  let pressAnchorX = 0
-  let pressAnchorY = 0
 
   const image = portraitUrl ? new Image() : null
   if (image) {
@@ -264,10 +257,6 @@ export function createAsciiBackground(
     rippleRadius = 0
     hideProgress = 0
     revealGrid.fill(0)
-    if (longPressTimer !== null) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
-    }
     updatePersonHoverState()
   }
 
@@ -635,13 +624,6 @@ export function createAsciiBackground(
     applyRevealStep()
   }
 
-  function cancelPendingLongPress() {
-    if (longPressTimer !== null) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
-    }
-  }
-
   /** 1 = letter hidden, 0 = visible; feather zone uses dithered cutoff */
   function cursorVoidMask(col: number, row: number) {
     const cx = col * charWidth + charWidth * 0.5
@@ -801,14 +783,6 @@ export function createAsciiBackground(
     mouseX = event.clientX
     mouseY = event.clientY
     updatePersonHoverState()
-
-    if (longPressTimer !== null) {
-      const dx = event.clientX - pressAnchorX
-      const dy = event.clientY - pressAnchorY
-      if (dx * dx + dy * dy > 14 * 14) {
-        cancelPendingLongPress()
-      }
-    }
   }
 
   function onPointerDown(event: PointerEvent) {
@@ -825,23 +799,13 @@ export function createAsciiBackground(
       resetColorInteraction()
     }
 
-    pressAnchorX = event.clientX
-    pressAnchorY = event.clientY
-    cancelPendingLongPress()
-
-    longPressTimer = setTimeout(() => {
-      longPressTimer = null
-      beginLongPressReveal(pressAnchorX, pressAnchorY)
-    }, longPressMs)
+    if (colorMode === 'idle') {
+      beginLongPressReveal(event.clientX, event.clientY)
+    }
   }
 
   function onPointerUp(event: PointerEvent) {
     if (event.button !== 0) return
-
-    const wasPending = longPressTimer !== null
-    cancelPendingLongPress()
-
-    if (wasPending) return
 
     if (colorMode === 'reveal') {
       beginHide()
@@ -849,14 +813,13 @@ export function createAsciiBackground(
   }
 
   function onPointerCancel() {
-    cancelPendingLongPress()
     if (colorMode === 'reveal') {
       beginHide()
     }
   }
 
   function onContextMenu(event: Event) {
-    if (colorMode !== 'idle' || longPressTimer !== null) {
+    if (colorMode !== 'idle') {
       event.preventDefault()
     }
   }
@@ -927,7 +890,6 @@ export function createAsciiBackground(
   return {
     destroy() {
       window.cancelAnimationFrame(animationFrameId)
-      cancelPendingLongPress()
       if (isOverPerson) {
         isOverPerson = false
         publishPersonHover()
