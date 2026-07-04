@@ -11,6 +11,7 @@ export const SITE_URL = `https://${GITHUB_OWNER}.github.io/${REPO_NAME}/`
 export const PUBLIC_ASSETS = {
   portraitLuminance: 'jacky-lin.png',
   portraitColor: 'jacky-lin-color.png',
+  profilePhoto: 'jacky-lin-profile.jpg',
   favicon: 'favicon.svg',
   icons: 'icons.svg',
 } as const
