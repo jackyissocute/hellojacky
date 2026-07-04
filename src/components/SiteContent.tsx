@@ -1,8 +1,6 @@
-import { useState } from 'react'
 import { PUBLIC_ASSETS } from '../config/site'
 import { repoAsset } from '../lib/repoAsset'
 import {
-  ACCENT_THEMES,
   aboutContent,
   projectsContent,
   siteProfile,
@@ -24,7 +22,13 @@ const socialIconMap = {
   x: XIcon,
 } as const
 
-function SocialLinks({ size = 22, className }: { size?: number; className?: string }) {
+function SocialLinks({
+  size = 22,
+  className,
+}: {
+  size?: number
+  className?: string
+}) {
   return (
     <>
       {siteProfile.social.map(({ label, href, icon }) => {
@@ -35,7 +39,7 @@ function SocialLinks({ size = 22, className }: { size?: number; className?: stri
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className={className}
+            className={`cursor-target ${className ?? ''}`.trim()}
             aria-label={label}
           >
             <Icon size={size} />
@@ -46,20 +50,18 @@ function SocialLinks({ size = 22, className }: { size?: number; className?: stri
   )
 }
 
-export function SiteContent() {
-  const [themeIndex, setThemeIndex] = useState(0)
-  const accent = ACCENT_THEMES[themeIndex]
+type SiteContentProps = {
+  accent: string
+  onCycleTheme: () => void
+}
 
-  const cycleTheme = () => {
-    setThemeIndex((current) => (current + 1) % ACCENT_THEMES.length)
-  }
-
+export function SiteContent({ accent, onCycleTheme }: SiteContentProps) {
   return (
     <main className="site-main" style={{ ['--color-accent' as string]: accent }}>
       <header className="site-card site-header">
         <img
           alt={siteProfile.avatarAlt}
-          className="site-avatar"
+          className="site-avatar cursor-target"
           src={repoAsset(PUBLIC_ASSETS.profilePhoto)}
         />
 
@@ -73,16 +75,20 @@ export function SiteContent() {
               <a
                 key={label}
                 href={href}
-                className={active ? 'site-nav-link site-nav-link-active' : 'site-nav-link'}
+                className={
+                  active
+                    ? 'site-nav-link site-nav-link-active cursor-target'
+                    : 'site-nav-link cursor-target'
+                }
               >
                 {label}
               </a>
             ))}
             <button
               type="button"
-              className="site-theme-button"
+              className="site-theme-button cursor-target"
               aria-label="Cycle theme"
-              onClick={cycleTheme}
+              onClick={onCycleTheme}
             >
               {accent}
             </button>
@@ -97,7 +103,7 @@ export function SiteContent() {
             href={siteProfile.resumeHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="site-resume-link"
+            className="site-resume-link cursor-target"
           >
             resume <span className="site-arrow">→</span>
           </a>
@@ -133,7 +139,7 @@ export function SiteContent() {
           <section className="site-projects">
             <div className="site-projects-header">
               <SplitHeading text="projects" className="site-heading" />
-              <a href={projectsContent.viewAllHref} className="site-view-all">
+              <a href={projectsContent.viewAllHref} className="site-view-all cursor-target">
                 view all <span className="site-arrow">→</span>
               </a>
             </div>
@@ -145,7 +151,7 @@ export function SiteContent() {
                     href={project.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="site-project-link"
+                    className="site-project-link cursor-target"
                   >
                     <div className="site-project-title-row">
                       <h3 className="site-project-name">{project.name}</h3>
