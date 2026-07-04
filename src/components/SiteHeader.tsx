@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { PUBLIC_ASSETS } from '../config/site'
 import { repoAsset } from '../lib/repoAsset'
 import { siteProfile } from '../content/siteContent'
-import { SplitHeading } from './SplitHeading'
+import { AccentFuzzyHeading } from './AccentFuzzyHeading'
 import {
   DiscordIcon,
   EmailIcon,
@@ -73,7 +73,7 @@ export function SiteHeader({ accent, onCycleTheme }: SiteHeaderProps) {
 
       <div className="site-header-copy">
         <div className="site-name-wrap">
-          <SplitHeading text={siteProfile.name} className="site-heading site-name" />
+          <AccentFuzzyHeading text={siteProfile.name} className="site-name" />
         </div>
 
         <nav className="site-nav" aria-label="Primary">

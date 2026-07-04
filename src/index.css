@@ -113,12 +113,23 @@ body {
 }
 
 .site-heading {
-  overflow: hidden;
+  overflow: visible;
   margin: 0;
   font-size: 1.5rem;
   line-height: 1.25;
   font-weight: 700;
   color: var(--color-accent);
+}
+
+.site-heading-fuzzy {
+  display: flex;
+  align-items: center;
+  min-height: 1.875rem;
+}
+
+.accent-fuzzy-text {
+  display: block;
+  pointer-events: none;
 }
 
 .site-heading span {

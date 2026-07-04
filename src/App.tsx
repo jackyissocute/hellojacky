@@ -4,6 +4,7 @@ import { AsciiInteractiveBackground } from './components/AsciiInteractiveBackgro
 import { SiteLayout } from './components/SiteLayout'
 import TargetCursor from './components/TargetCursor'
 import { ROUTER_BASENAME } from './config/site'
+import { FuzzyBurstProvider } from './context/FuzzyBurstContext'
 import { ACCENT_THEMES } from './content/siteContent'
 import { HomePage } from './pages/HomePage'
 import { ProjectsPage } from './pages/ProjectsPage'
@@ -14,28 +15,30 @@ function App() {
 
   return (
     <BrowserRouter basename={ROUTER_BASENAME}>
-      <div className="app-shell">
-        <AsciiInteractiveBackground />
-        <TargetCursor
-          spinDuration={2}
-          hideDefaultCursor
-          parallaxOn
-          cursorColorOnTarget={accent}
-        />
-        <Routes>
-          <Route
-            element={
-              <SiteLayout
-                accent={accent}
-                onCycleTheme={() => setThemeIndex((current) => (current + 1) % ACCENT_THEMES.length)}
-              />
-            }
-          >
-            <Route index element={<HomePage />} />
-            <Route path="projects" element={<ProjectsPage />} />
-          </Route>
-        </Routes>
-      </div>
+      <FuzzyBurstProvider accent={accent} themeSignal={themeIndex}>
+        <div className="app-shell">
+          <AsciiInteractiveBackground />
+          <TargetCursor
+            spinDuration={2}
+            hideDefaultCursor
+            parallaxOn
+            cursorColorOnTarget={accent}
+          />
+          <Routes>
+            <Route
+              element={
+                <SiteLayout
+                  accent={accent}
+                  onCycleTheme={() => setThemeIndex((current) => (current + 1) % ACCENT_THEMES.length)}
+                />
+              }
+            >
+              <Route index element={<HomePage />} />
+              <Route path="projects" element={<ProjectsPage />} />
+            </Route>
+          </Routes>
+        </div>
+      </FuzzyBurstProvider>
     </BrowserRouter>
   )
 }

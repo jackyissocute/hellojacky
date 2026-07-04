@@ -1,7 +1,7 @@
 import { aboutContent, projectsContent } from '../content/siteContent'
 import { MobileSocialLinks } from '../components/SiteHeader'
 import { ProjectList } from '../components/ProjectList'
-import { SplitHeading } from '../components/SplitHeading'
+import { AccentFuzzyHeading } from '../components/AccentFuzzyHeading'
 
 export function HomePage() {
   const previewProjects = projectsContent.items.slice(0, projectsContent.homePreviewCount)
@@ -10,7 +10,7 @@ export function HomePage() {
     <div className="site-card site-body">
       <div className="site-body-scroll">
         <section className="site-about">
-          <SplitHeading text="about" className="site-heading" />
+          <AccentFuzzyHeading text="about" />
 
           <div className="site-about-copy">
             {aboutContent.paragraphs.map((paragraph) => (

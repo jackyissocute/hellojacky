@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Project } from '../content/siteContent'
-import { SplitHeading } from './SplitHeading'
+import { AccentFuzzyHeading } from './AccentFuzzyHeading'
 
 type ProjectListProps = {
   projects: Project[]
@@ -33,7 +33,7 @@ export function ProjectList({ projects, variant, viewAllHref }: ProjectListProps
   return (
     <section className="site-projects">
       <div className="site-projects-header">
-        <SplitHeading text="projects" className="site-heading" />
+        <AccentFuzzyHeading text="projects" />
         {viewAllHref ? (
           <Link to={viewAllHref} className="site-view-all cursor-target">
             view all <span className="site-arrow">→</span>
