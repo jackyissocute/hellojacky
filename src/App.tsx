@@ -11,7 +11,12 @@ function App() {
   return (
     <div className="app-shell">
       <AsciiInteractiveBackground />
-      <TargetCursor spinDuration={2} hideDefaultCursor parallaxOn />
+      <TargetCursor
+        spinDuration={2}
+        hideDefaultCursor
+        parallaxOn
+        cursorColorOnTarget={accent}
+      />
       <SiteContent
         accent={accent}
         onCycleTheme={() => setThemeIndex((current) => (current + 1) % ACCENT_THEMES.length)}

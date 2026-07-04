@@ -1,6 +1,5 @@
-import { memo, useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { gsap } from 'gsap'
-import { readSiteAccentColor } from '../lib/accentColor'
 import './TargetCursor.css'
 
 type TargetCursorProps = {
@@ -9,20 +8,7 @@ type TargetCursorProps = {
   hideDefaultCursor?: boolean
   parallaxOn?: boolean
   cursorColor?: string
-}
-
-type CursorRuntime = {
-  mouseX: number
-  mouseY: number
-  cursorX: number
-  cursorY: number
-  strength: number
-  targetStrength: number
-  activeTarget: Element | null
-  targetCornerPositions: Array<{ x: number; y: number }> | null
-  displayedCornerPositions: Array<{ x: number; y: number }>
-  suppressLeaveUntil: number
-  lastAccent: string
+  cursorColorOnTarget?: string
 }
 
 const getContainingBlock = (element: HTMLElement | null): HTMLElement | null => {
@@ -67,29 +53,27 @@ const getCornerTargets = (
   { x: rect.left - borderWidth - offsetX, y: rect.bottom + borderWidth - cornerSize - offsetY },
 ]
 
-const isPointerOverTarget = (target: Element, x: number, y: number, selector: string) => {
-  const elementUnderMouse = document.elementFromPoint(x, y)
-  return (
-    elementUnderMouse !== null &&
-    (elementUnderMouse === target || elementUnderMouse.closest(selector) === target)
-  )
-}
-
-export default memo(function TargetCursor({
+export default function TargetCursor({
   targetSelector = '.cursor-target',
   spinDuration = 2,
   hideDefaultCursor = true,
   parallaxOn = true,
   cursorColor = '#ffffff',
+  cursorColorOnTarget,
 }: TargetCursorProps) {
   const cursorRef = useRef<HTMLDivElement>(null)
   const spinTl = useRef<gsap.core.Timeline | null>(null)
   const dotRef = useRef<HTMLDivElement>(null)
   const cursorColorRef = useRef(cursorColor)
+  const cursorColorOnTargetRef = useRef(cursorColorOnTarget)
   const isTargetingRef = useRef(false)
-  const runtimeRef = useRef<CursorRuntime | null>(null)
+  const lastMouseRef = useRef({
+    x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
+    y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0,
+  })
 
   cursorColorRef.current = cursorColor
+  cursorColorOnTargetRef.current = cursorColorOnTarget
 
   const isMobile = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -128,47 +112,41 @@ export default memo(function TargetCursor({
       }
     })
 
-    if (!runtimeRef.current) {
-      runtimeRef.current = {
-        mouseX: window.innerWidth / 2,
-        mouseY: window.innerHeight / 2,
-        cursorX: 0,
-        cursorY: 0,
-        strength: 0,
-        targetStrength: 0,
-        activeTarget: null,
-        targetCornerPositions: null,
-        displayedCornerPositions: restPositions.map((pos) => ({ ...pos })),
-        suppressLeaveUntil: 0,
-        lastAccent: readSiteAccentColor(),
-      }
-    }
-
-    const runtime = runtimeRef.current
-    let currentLeaveHandler: EventListener | null = null
+    let mouseX = lastMouseRef.current.x
+    let mouseY = lastMouseRef.current.y
+    let cursorX = mouseX
+    let cursorY = mouseY
+    let activeTarget: Element | null = null
+    let currentLeaveHandler: (() => void) | null = null
+    let targetCornerPositions: Array<{ x: number; y: number }> | null = null
+    let strength = 0
+    let targetStrength = 0
     let spinPending = false
+    let displayedCornerPositions = restPositions.map((pos) => ({ ...pos }))
 
     const initialOffset = getOffset()
-    runtime.cursorX = runtime.mouseX - initialOffset.x
-    runtime.cursorY = runtime.mouseY - initialOffset.y
-
+    cursorX = mouseX - initialOffset.x
+    cursorY = mouseY - initialOffset.y
     gsap.set(cursor, {
       xPercent: -50,
       yPercent: -50,
-      x: runtime.cursorX,
-      y: runtime.cursorY,
+      x: cursorX,
+      y: cursorY,
       force3D: true,
     })
 
     restPositions.forEach((pos, i) => {
       setCornerTransform[i](pos.x, pos.y)
     })
-    corners.forEach((corner) => {
-      corner.style.borderColor = cursorColorRef.current
-    })
-    if (dotRef.current) {
-      dotRef.current.style.backgroundColor = cursorColorRef.current
+
+    const createSpinTimeline = () => {
+      spinTl.current?.kill()
+      spinTl.current = gsap
+        .timeline({ repeat: -1 })
+        .to(cursor, { rotation: '+=360', duration: spinDuration, ease: 'none' })
     }
+
+    createSpinTimeline()
 
     const applyTargetColors = (color: string) => {
       corners.forEach((corner) => {
@@ -177,20 +155,13 @@ export default memo(function TargetCursor({
       if (dotRef.current) {
         dotRef.current.style.backgroundColor = color
       }
-      runtime.lastAccent = color
     }
 
     const refreshTargetCorners = () => {
-      if (!runtime.activeTarget) return
-      const rect = runtime.activeTarget.getBoundingClientRect()
+      if (!activeTarget) return
+      const rect = activeTarget.getBoundingClientRect()
       const { x: offsetX, y: offsetY } = getOffset()
-      runtime.targetCornerPositions = getCornerTargets(
-        rect,
-        offsetX,
-        offsetY,
-        borderWidth,
-        cornerSize,
-      )
+      targetCornerPositions = getCornerTargets(rect, offsetX, offsetY, borderWidth, cornerSize)
     }
 
     const cleanupTarget = (target: Element) => {
@@ -201,7 +172,7 @@ export default memo(function TargetCursor({
     }
 
     const resumeSpin = () => {
-      if (!cursorRef.current || runtime.activeTarget) return
+      if (!cursorRef.current || activeTarget) return
       spinPending = false
       const currentRotation = gsap.getProperty(cursorRef.current, 'rotation') as number
       const normalizedRotation = currentRotation % 360
@@ -220,47 +191,39 @@ export default memo(function TargetCursor({
     }
 
     const deactivateTarget = () => {
-      if (runtime.activeTarget) {
-        cleanupTarget(runtime.activeTarget)
-      }
-      runtime.activeTarget = null
-      runtime.targetCornerPositions = null
-      runtime.targetStrength = 0
+      activeTarget = null
+      targetCornerPositions = null
+      targetStrength = 0
       isTargetingRef.current = false
       spinPending = true
       applyTargetColors(cursorColorRef.current)
     }
 
-    const assertLock = (target: Element) => {
-      runtime.activeTarget = target
-      runtime.targetStrength = 1
-      runtime.strength = 1
-      isTargetingRef.current = true
-      spinPending = false
-      refreshTargetCorners()
-      gsap.killTweensOf(cursor, 'rotation')
-      spinTl.current?.pause()
-      gsap.set(cursor, { rotation: 0, force3D: true })
-      applyTargetColors(readSiteAccentColor(runtime.lastAccent))
-    }
-
     const activateTarget = (target: Element) => {
-      if (runtime.activeTarget === target) {
+      if (activeTarget === target) {
         refreshTargetCorners()
         return
       }
 
-      if (runtime.activeTarget) {
-        cleanupTarget(runtime.activeTarget)
+      if (activeTarget) {
+        cleanupTarget(activeTarget)
       }
 
-      assertLock(target)
+      spinPending = false
+      activeTarget = target
+      targetStrength = 1
+      refreshTargetCorners()
+      isTargetingRef.current = true
 
-      const leaveHandler: EventListener = (event) => {
-        const mouseEvent = event as MouseEvent
-        if (performance.now() < runtime.suppressLeaveUntil) return
-        if (mouseEvent.relatedTarget instanceof Node && target.contains(mouseEvent.relatedTarget)) return
-        if (isPointerOverTarget(target, runtime.mouseX, runtime.mouseY, targetSelector)) return
+      gsap.killTweensOf(cursor, 'rotation')
+      spinTl.current?.pause()
+      gsap.set(cursor, { rotation: 0, force3D: true })
+
+      if (cursorColorOnTargetRef.current) {
+        applyTargetColors(cursorColorOnTargetRef.current)
+      }
+
+      const leaveHandler = () => {
         cleanupTarget(target)
         deactivateTarget()
       }
@@ -283,90 +246,49 @@ export default memo(function TargetCursor({
       }
     }
 
-    const createSpinTimeline = () => {
-      spinTl.current?.kill()
-      spinTl.current = gsap
-        .timeline({ repeat: -1 })
-        .to(cursor, { rotation: '+=360', duration: spinDuration, ease: 'none' })
-    }
-
-    createSpinTimeline()
-
-    if (runtime.activeTarget && document.contains(runtime.activeTarget)) {
-      assertLock(runtime.activeTarget)
-      currentLeaveHandler = (event) => {
-        const target = runtime.activeTarget
-        if (!target) return
-        const mouseEvent = event as MouseEvent
-        if (performance.now() < runtime.suppressLeaveUntil) return
-        if (mouseEvent.relatedTarget instanceof Node && target.contains(mouseEvent.relatedTarget)) return
-        if (isPointerOverTarget(target, runtime.mouseX, runtime.mouseY, targetSelector)) return
-        cleanupTarget(target)
-        deactivateTarget()
-      }
-      runtime.activeTarget.addEventListener('mouseleave', currentLeaveHandler)
-    } else if (runtime.targetStrength === 0) {
-      restPositions.forEach((pos, i) => {
-        setCornerTransform[i](pos.x, pos.y)
-      })
-      if (runtime.strength === 0) {
-        spinTl.current?.play()
-      }
-    }
-
     const tick = () => {
       const dt = gsap.ticker.deltaRatio()
       const { x: offsetX, y: offsetY } = getOffset()
 
-      const targetCursorX = runtime.mouseX - offsetX
-      const targetCursorY = runtime.mouseY - offsetY
+      const targetCursorX = mouseX - offsetX
+      const targetCursorY = mouseY - offsetY
       const cursorEase = 1 - Math.pow(0.0008, dt)
-      runtime.cursorX += (targetCursorX - runtime.cursorX) * cursorEase
-      runtime.cursorY += (targetCursorY - runtime.cursorY) * cursorEase
-      gsap.set(cursor, { x: runtime.cursorX, y: runtime.cursorY, force3D: true })
+      cursorX += (targetCursorX - cursorX) * cursorEase
+      cursorY += (targetCursorY - cursorY) * cursorEase
+      gsap.set(cursor, { x: cursorX, y: cursorY, force3D: true })
 
-      const strengthEase = runtime.targetStrength > runtime.strength ? 0.42 : 0.34
-      runtime.strength += (runtime.targetStrength - runtime.strength) * strengthEase * dt
-      if (Math.abs(runtime.targetStrength - runtime.strength) < 0.001) {
-        runtime.strength = runtime.targetStrength
-      }
-
-      if (runtime.activeTarget) {
-        refreshTargetCorners()
-        const accent = readSiteAccentColor(runtime.lastAccent)
-        if (accent !== runtime.lastAccent) {
-          applyTargetColors(accent)
-        }
+      const strengthEase = targetStrength > strength ? 0.42 : 0.34
+      strength += (targetStrength - strength) * strengthEase * dt
+      if (Math.abs(targetStrength - strength) < 0.001) {
+        strength = targetStrength
       }
 
       for (let i = 0; i < corners.length; i += 1) {
         let nextX = restPositions[i].x
         let nextY = restPositions[i].y
 
-        if (runtime.targetCornerPositions && runtime.strength > 0) {
-          const lockX = runtime.targetCornerPositions[i].x - runtime.cursorX
-          const lockY = runtime.targetCornerPositions[i].y - runtime.cursorY
-          nextX = restPositions[i].x + (lockX - restPositions[i].x) * runtime.strength
-          nextY = restPositions[i].y + (lockY - restPositions[i].y) * runtime.strength
+        if (targetCornerPositions && strength > 0) {
+          const lockX = targetCornerPositions[i].x - cursorX
+          const lockY = targetCornerPositions[i].y - cursorY
+          nextX = restPositions[i].x + (lockX - restPositions[i].x) * strength
+          nextY = restPositions[i].y + (lockY - restPositions[i].y) * strength
         }
 
-        if (parallaxOn && runtime.strength >= 0.98 && runtime.targetCornerPositions) {
+        if (parallaxOn && strength >= 0.98 && targetCornerPositions) {
           const parallaxEase = 0.55 * dt
-          runtime.displayedCornerPositions[i].x +=
-            (nextX - runtime.displayedCornerPositions[i].x) * parallaxEase
-          runtime.displayedCornerPositions[i].y +=
-            (nextY - runtime.displayedCornerPositions[i].y) * parallaxEase
-          nextX = runtime.displayedCornerPositions[i].x
-          nextY = runtime.displayedCornerPositions[i].y
+          displayedCornerPositions[i].x += (nextX - displayedCornerPositions[i].x) * parallaxEase
+          displayedCornerPositions[i].y += (nextY - displayedCornerPositions[i].y) * parallaxEase
+          nextX = displayedCornerPositions[i].x
+          nextY = displayedCornerPositions[i].y
         } else {
-          runtime.displayedCornerPositions[i].x = nextX
-          runtime.displayedCornerPositions[i].y = nextY
+          displayedCornerPositions[i].x = nextX
+          displayedCornerPositions[i].y = nextY
         }
 
         setCornerTransform[i](nextX, nextY)
       }
 
-      if (runtime.targetStrength === 0 && runtime.strength === 0 && spinPending) {
+      if (targetStrength === 0 && strength === 0 && spinPending) {
         resumeSpin()
       }
     }
@@ -374,27 +296,25 @@ export default memo(function TargetCursor({
     gsap.ticker.add(tick)
 
     const moveHandler = (e: MouseEvent) => {
-      runtime.mouseX = e.clientX
-      runtime.mouseY = e.clientY
+      mouseX = e.clientX
+      mouseY = e.clientY
+      lastMouseRef.current = { x: e.clientX, y: e.clientY }
     }
 
     const scrollHandler = () => {
-      if (!runtime.activeTarget) return
+      if (!activeTarget || !cursorRef.current) return
       refreshTargetCorners()
-      if (!isPointerOverTarget(runtime.activeTarget, runtime.mouseX, runtime.mouseY, targetSelector)) {
-        if (performance.now() < runtime.suppressLeaveUntil) return
-        if (currentLeaveHandler) {
-          currentLeaveHandler(new Event('mouseleave'))
-        }
+      const { x: offsetX, y: offsetY } = getOffset()
+      const pointerX = (gsap.getProperty(cursorRef.current, 'x') as number) + offsetX
+      const pointerY = (gsap.getProperty(cursorRef.current, 'y') as number) + offsetY
+      const elementUnderMouse = document.elementFromPoint(pointerX, pointerY)
+      const isStillOverTarget =
+        elementUnderMouse &&
+        (elementUnderMouse === activeTarget ||
+          elementUnderMouse.closest(targetSelector) === activeTarget)
+      if (!isStillOverTarget && currentLeaveHandler) {
+        currentLeaveHandler()
       }
-    }
-
-    const themeClickHandler = (event: MouseEvent) => {
-      const themeButton = (event.target as Element | null)?.closest('.site-theme-button')
-      if (!themeButton || !themeButton.matches(targetSelector)) return
-
-      runtime.suppressLeaveUntil = performance.now() + 250
-      activateTarget(themeButton)
     }
 
     const mouseDownHandler = () => {
@@ -411,7 +331,6 @@ export default memo(function TargetCursor({
 
     window.addEventListener('mousemove', moveHandler, { passive: true })
     window.addEventListener('mouseover', enterHandler, { passive: true })
-    window.addEventListener('click', themeClickHandler, true)
     window.addEventListener('scroll', scrollHandler, { passive: true })
     window.addEventListener('mousedown', mouseDownHandler)
     window.addEventListener('mouseup', mouseUpHandler)
@@ -421,16 +340,27 @@ export default memo(function TargetCursor({
       gsap.ticker.remove(tick)
       window.removeEventListener('mousemove', moveHandler)
       window.removeEventListener('mouseover', enterHandler)
-      window.removeEventListener('click', themeClickHandler, true)
       window.removeEventListener('scroll', scrollHandler)
       window.removeEventListener('mousedown', mouseDownHandler)
       window.removeEventListener('mouseup', mouseUpHandler)
       window.removeEventListener('resize', scrollHandler)
-      if (runtime.activeTarget) cleanupTarget(runtime.activeTarget)
+      if (activeTarget) cleanupTarget(activeTarget)
       spinTl.current?.kill()
       document.body.style.cursor = originalCursor
     }
   }, [targetSelector, spinDuration, hideDefaultCursor, isMobile, parallaxOn])
+
+  useEffect(() => {
+    if (isMobile || !cursorRef.current || !isTargetingRef.current || !cursorColorOnTarget) return
+
+    const corners = cursorRef.current.querySelectorAll<HTMLDivElement>('.target-cursor-corner')
+    corners.forEach((corner) => {
+      corner.style.borderColor = cursorColorOnTarget
+    })
+    if (dotRef.current) {
+      dotRef.current.style.backgroundColor = cursorColorOnTarget
+    }
+  }, [cursorColorOnTarget, isMobile])
 
   useEffect(() => {
     if (isMobile || !cursorRef.current || !spinTl.current) return
@@ -446,11 +376,11 @@ export default memo(function TargetCursor({
 
   return (
     <div ref={cursorRef} className="target-cursor-wrapper">
-      <div ref={dotRef} className="target-cursor-dot" />
-      <div className="target-cursor-corner corner-tl" />
-      <div className="target-cursor-corner corner-tr" />
-      <div className="target-cursor-corner corner-br" />
-      <div className="target-cursor-corner corner-bl" />
+      <div ref={dotRef} className="target-cursor-dot" style={{ backgroundColor: cursorColor }} />
+      <div className="target-cursor-corner corner-tl" style={{ borderColor: cursorColor }} />
+      <div className="target-cursor-corner corner-tr" style={{ borderColor: cursorColor }} />
+      <div className="target-cursor-corner corner-br" style={{ borderColor: cursorColor }} />
+      <div className="target-cursor-corner corner-bl" style={{ borderColor: cursorColor }} />
     </div>
   )
-})
+}
