@@ -12,6 +12,6 @@ export const PUBLIC_ASSETS = {
   portraitLuminance: 'jacky-lin.png',
   portraitColor: 'jacky-lin-color.png',
   profilePhoto: 'jacky-lin-profile.jpg',
-  favicon: 'favicon.svg',
+  favicon: 'jacky-lin.png',
   icons: 'icons.svg',
 } as const
