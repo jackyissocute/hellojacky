@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createAsciiBackground } from '../lib/asciiBackground'
+import { PUBLIC_ASSETS } from '../config/site'
+import { repoAsset } from '../lib/repoAsset'
 
 export function AsciiInteractiveBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -14,8 +16,8 @@ export function AsciiInteractiveBackground() {
       charHeight: 12,
       backgroundColor: '#1a1a1a',
       textColor: '#3d3d3d',
-      portraitUrl: `${import.meta.env.BASE_URL}jacky-lin.png`,
-      portraitColorUrl: `${import.meta.env.BASE_URL}jacky-lin-color.png`,
+      portraitUrl: repoAsset(PUBLIC_ASSETS.portraitLuminance),
+      portraitColorUrl: repoAsset(PUBLIC_ASSETS.portraitColor),
       portraitAlphaThreshold: 10,
       portraitAlign: 'right',
       portraitHeightRatio: 0.95,
