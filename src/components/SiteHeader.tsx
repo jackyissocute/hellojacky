@@ -122,7 +122,6 @@ export function SiteHeader({ accent, onCycleTheme }: SiteHeaderProps) {
         </div>
         <a
           href={repoAsset(PUBLIC_ASSETS.resume)}
-          download={PUBLIC_ASSETS.resume}
           target="_blank"
           rel="noopener noreferrer"
           className="site-resume-link cursor-target"
