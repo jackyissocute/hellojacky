@@ -2,7 +2,21 @@ import { useEffect, useMemo, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ASCII_PERSON_HOVER_EVENT, type AsciiPersonHoverDetail } from '../lib/asciiPersonHover'
 import { getPriorityProximityTarget } from '../lib/cursorTargetProximity'
+import { expSmooth, isSettled } from '../lib/expSmooth'
 import './TargetCursor.css'
+
+/** Cursor follow lag — lower = softer delay. */
+const CURSOR_LAG = 0.11
+/** Lock box expand speed when engaging a target. */
+const LOCK_IN_LAG = 0.055
+/** Lock box collapse speed when leaving a target. */
+const LOCK_OUT_LAG = 0.085
+/** Corner position smoothing during expand/collapse. */
+const CORNER_LAG = 0.1
+/** Corner follow when fully locked (scroll/resize updates). */
+const CORNER_LOCKED_LAG = 0.22
+/** Subtle parallax on locked corners. */
+const CORNER_PARALLAX_LAG = 0.14
 
 type TargetCursorProps = {
   targetSelector?: string
@@ -275,46 +289,58 @@ export default function TargetCursor({
       }
     }
 
+    gsap.ticker.lagSmoothing(0)
+
     const tick = () => {
       const dt = gsap.ticker.deltaRatio()
       const { x: offsetX, y: offsetY } = getOffset()
 
       const targetCursorX = mouseX - offsetX
       const targetCursorY = mouseY - offsetY
-      const cursorEase = 1 - Math.pow(0.0008, dt)
-      cursorX += (targetCursorX - cursorX) * cursorEase
-      cursorY += (targetCursorY - cursorY) * cursorEase
+      cursorX = expSmooth(cursorX, targetCursorX, CURSOR_LAG, dt)
+      cursorY = expSmooth(cursorY, targetCursorY, CURSOR_LAG, dt)
       gsap.set(cursor, { x: cursorX, y: cursorY, force3D: true })
 
-      const strengthEase = targetStrength > strength ? 0.38 : 0.62
-      strength += (targetStrength - strength) * strengthEase * dt
-      if (Math.abs(targetStrength - strength) < 0.001) {
+      const lockLag = targetStrength > strength ? LOCK_IN_LAG : LOCK_OUT_LAG
+      strength = expSmooth(strength, targetStrength, lockLag, dt)
+      if (isSettled(strength, targetStrength)) {
         strength = targetStrength
       }
 
+      const isFullyLocked = strength > 0.985 && targetStrength === 1
+
       for (let i = 0; i < corners.length; i += 1) {
-        let nextX = restPositions[i].x
-        let nextY = restPositions[i].y
+        let idealX = restPositions[i].x
+        let idealY = restPositions[i].y
 
         if (targetCornerPositions && strength > 0) {
           const lockX = targetCornerPositions[i].x - cursorX
           const lockY = targetCornerPositions[i].y - cursorY
-          nextX = restPositions[i].x + (lockX - restPositions[i].x) * strength
-          nextY = restPositions[i].y + (lockY - restPositions[i].y) * strength
+          idealX = restPositions[i].x + (lockX - restPositions[i].x) * strength
+          idealY = restPositions[i].y + (lockY - restPositions[i].y) * strength
         }
 
-        if (parallaxOn && strength >= 0.98 && targetCornerPositions) {
-          const parallaxEase = 0.55 * dt
-          displayedCornerPositions[i].x += (nextX - displayedCornerPositions[i].x) * parallaxEase
-          displayedCornerPositions[i].y += (nextY - displayedCornerPositions[i].y) * parallaxEase
-          nextX = displayedCornerPositions[i].x
-          nextY = displayedCornerPositions[i].y
-        } else {
-          displayedCornerPositions[i].x = nextX
-          displayedCornerPositions[i].y = nextY
+        let cornerLag = CORNER_LAG
+        if (isFullyLocked) {
+          cornerLag = parallaxOn ? CORNER_PARALLAX_LAG : CORNER_LOCKED_LAG
+        } else if (strength > 0.02) {
+          cornerLag = CORNER_LAG
         }
 
-        setCornerTransform[i](nextX, nextY)
+        displayedCornerPositions[i].x = expSmooth(
+          displayedCornerPositions[i].x,
+          idealX,
+          cornerLag,
+          dt,
+        )
+        displayedCornerPositions[i].y = expSmooth(
+          displayedCornerPositions[i].y,
+          idealY,
+          cornerLag,
+          dt,
+        )
+
+        setCornerTransform[i](displayedCornerPositions[i].x, displayedCornerPositions[i].y)
       }
 
       if (targetStrength === 0 && strength === 0 && spinPending) {
@@ -354,14 +380,14 @@ export default function TargetCursor({
 
     const mouseDownHandler = () => {
       if (!dotRef.current) return
-      gsap.to(dotRef.current, { scale: 0.7, duration: 0.12, overwrite: 'auto' })
-      gsap.to(cursor, { scale: 0.9, duration: 0.1, overwrite: 'auto' })
+      gsap.to(dotRef.current, { scale: 0.7, duration: 0.18, ease: 'power2.out', overwrite: 'auto' })
+      gsap.to(cursor, { scale: 0.9, duration: 0.16, ease: 'power2.out', overwrite: 'auto' })
     }
 
     const mouseUpHandler = () => {
       if (!dotRef.current) return
-      gsap.to(dotRef.current, { scale: 1, duration: 0.12, overwrite: 'auto' })
-      gsap.to(cursor, { scale: 1, duration: 0.1, overwrite: 'auto' })
+      gsap.to(dotRef.current, { scale: 1, duration: 0.22, ease: 'power2.out', overwrite: 'auto' })
+      gsap.to(cursor, { scale: 1, duration: 0.2, ease: 'power2.out', overwrite: 'auto' })
       if (!activeTarget) {
         const hasRotationTween = gsap.getTweensOf(cursor).some((tween) => {
           const vars = tween.vars as { rotation?: unknown }

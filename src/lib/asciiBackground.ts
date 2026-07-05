@@ -53,6 +53,7 @@ export interface AsciiBackgroundOptions {
 
 import { dispatchAsciiPersonHover } from './asciiPersonHover'
 import { isLongPressSuppressedZone } from './cursorTargetProximity'
+import { expSmooth } from './expSmooth'
 
 export interface AsciiBackgroundController {
   destroy: () => void
@@ -165,10 +166,17 @@ export function createAsciiBackground(
 
   let mouseX = -9999
   let mouseY = -9999
+  let smoothMouseX = -9999
+  let smoothMouseY = -9999
+
+  /** Pointer lag for ASCII void rendering (matches target cursor softness). */
+  const pointerLag = 0.13
 
   let isOverPerson = false
   let activeVoidRadius = cursorRadius
   let activeVoidFeather = cursorFeather
+  let smoothVoidRadius = cursorRadius
+  let smoothVoidFeather = cursorFeather
   let hintTextWidth = 0
   let hintTextHeight = hintFontSize
 
@@ -630,8 +638,8 @@ export function createAsciiBackground(
   function cursorVoidMask(col: number, row: number) {
     const cx = col * charWidth + charWidth * 0.5
     const cy = row * charHeight + charHeight * 0.5
-    const dx = cx - mouseX
-    const dy = cy - mouseY
+    const dx = cx - smoothMouseX
+    const dy = cy - smoothMouseY
 
     const ex = dx / cursorStretchX
     const ey = dy / cursorStretchY
@@ -639,16 +647,16 @@ export function createAsciiBackground(
 
     const hash = cellHash(col, row)
     const edgeNoise = isOverPerson ? cursorEdgeNoise * 0.45 : cursorEdgeNoise
-    const wobble = ((hash % 1000) / 1000 - 0.5) * 2 * edgeNoise * activeVoidRadius
+    const wobble = ((hash % 1000) / 1000 - 0.5) * 2 * edgeNoise * smoothVoidRadius
     const angleWobble =
-      Math.sin(Math.atan2(dy, dx) * 2.7 + hash * 0.0007) * edgeNoise * 0.35 * activeVoidRadius
+      Math.sin(Math.atan2(dy, dx) * 2.7 + hash * 0.0007) * edgeNoise * 0.35 * smoothVoidRadius
     const adjustedDist = dist + wobble + angleWobble
 
-    const innerRadius = Math.max(8, activeVoidRadius - activeVoidFeather)
-    if (adjustedDist >= activeVoidRadius) return 0
+    const innerRadius = Math.max(8, smoothVoidRadius - smoothVoidFeather)
+    if (adjustedDist >= smoothVoidRadius) return 0
     if (adjustedDist <= innerRadius) return 1
 
-    const edgeT = (adjustedDist - innerRadius) / (activeVoidRadius - innerRadius)
+    const edgeT = (adjustedDist - innerRadius) / (smoothVoidRadius - innerRadius)
     return 1 - smoothstep(0, 1, edgeT)
   }
 
@@ -694,9 +702,9 @@ export function createAsciiBackground(
   function shouldHideCell(col: number, row: number) {
     const cx = col * charWidth + charWidth * 0.5
     const cy = row * charHeight + charHeight * 0.5
-    const dx = cx - mouseX
-    const dy = cy - mouseY
-    const effectRadius = activeVoidRadius + activeVoidFeather * 0.75
+    const dx = cx - smoothMouseX
+    const dy = cy - smoothMouseY
+    const effectRadius = smoothVoidRadius + smoothVoidFeather * 0.75
 
     if (dx * dx + dy * dy >= effectRadius * effectRadius * 1.6) {
       return false
@@ -840,6 +848,19 @@ export function createAsciiBackground(
     const dt = lastTickNow ? Math.min(0.05, (now - lastTickNow) / 1000) : 0
     lastTickNow = now
     driftNow = now
+
+    const dtRatio = dt * 60
+    if (mouseX > -9000) {
+      smoothMouseX = expSmooth(smoothMouseX, mouseX, pointerLag, dtRatio)
+      smoothMouseY = expSmooth(smoothMouseY, mouseY, pointerLag, dtRatio)
+    } else {
+      smoothMouseX = mouseX
+      smoothMouseY = mouseY
+    }
+
+    smoothVoidRadius = expSmooth(smoothVoidRadius, activeVoidRadius, 0.16, dtRatio)
+    smoothVoidFeather = expSmooth(smoothVoidFeather, activeVoidFeather, 0.16, dtRatio)
+
     updateColorInteraction(dt)
     if (colorMode !== 'idle' && isOverPerson) {
       isOverPerson = false
