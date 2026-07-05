@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ASCII_PERSON_HOVER_EVENT, type AsciiPersonHoverDetail } from '../lib/asciiPersonHover'
-import { getPriorityProximityTarget } from '../lib/cursorTargetProximity'
+import { getNearestCursorTarget } from '../lib/cursorTargetProximity'
 import { expSmooth, isSettled } from '../lib/expSmooth'
 import './TargetCursor.css'
 
@@ -233,11 +233,7 @@ export default function TargetCursor({
     }
 
     const resolveHoverTarget = (x: number, y: number): Element | null => {
-      const el = document.elementFromPoint(x, y)
-      const direct = el?.closest(targetSelector)
-      if (direct) return direct
-
-      return getPriorityProximityTarget(x, y)
+      return getNearestCursorTarget(x, y, targetSelector, activeTarget)
     }
 
     const activateTarget = (target: Element) => {
