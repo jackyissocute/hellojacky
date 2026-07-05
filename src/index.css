@@ -158,6 +158,10 @@ body {
   min-height: 1.875rem;
 }
 
+.site-heading-fuzzy .accent-fuzzy-text {
+  max-width: none;
+}
+
 .accent-fuzzy-text {
   display: block;
   max-width: 100%;
@@ -351,6 +355,10 @@ body {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 2rem;
+}
+
+.site-projects-header .site-heading {
+  flex-shrink: 0;
 }
 
 .site-view-all {
