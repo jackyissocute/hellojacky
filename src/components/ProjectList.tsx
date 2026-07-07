@@ -64,11 +64,9 @@ export function ProjectList({ projects, variant, viewAllHref }: ProjectListProps
               rel="noopener noreferrer"
               className="site-project-link cursor-target"
             >
-              <div className="site-project-title-row">
-                <h3 className="site-project-name">{project.name}</h3>
-                <p className="site-project-language">{project.language}</p>
-              </div>
+              <h3 className="site-project-name">{project.name}</h3>
               <p className="site-project-description">{project.description}</p>
+              <p className="site-project-language">{project.language}</p>
             </a>
           </article>
         ))}
