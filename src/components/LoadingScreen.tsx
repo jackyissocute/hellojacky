@@ -6,7 +6,7 @@ const BAR_WIDTH = 10
 /** Real progress threshold that starts the humor typewriter — bar does not pause here */
 const TEXT_AT = 0.8
 const ELLIPSIS_MS = 420
-const TYPE_MS = 34
+const TYPE_MS = 52
 const BLINK_MS = 90
 const ERROR_TEXT = 'ERROR: “Sense of humor” not found'
 const HINT_TEXT = 'Reboot me with coffee or memes'
@@ -87,7 +87,7 @@ export function LoadingScreen({
         await sleep(TYPE_MS)
       }
 
-      await sleep(220)
+      await sleep(320)
       if (cancelled) return
 
       setShowHintLine(true)
