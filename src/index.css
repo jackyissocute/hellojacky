@@ -50,6 +50,183 @@ body {
   position: relative;
   width: 100%;
   min-height: 100%;
+  transition: opacity 0.7s ease 0.15s;
+}
+
+.app-shell--entering {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-shell--ready {
+  opacity: 1;
+}
+
+html.is-booting,
+html.is-booting body {
+  overflow: hidden;
+}
+
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding:
+    max(1.25rem, env(safe-area-inset-top, 0px))
+    max(1.25rem, env(safe-area-inset-right, 0px))
+    max(1.25rem, env(safe-area-inset-bottom, 0px))
+    max(1.25rem, env(safe-area-inset-left, 0px));
+  background: #000;
+  color: #e8e8e8;
+  font-family:
+    'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas,
+    var(--font-geist-mono);
+  transition: opacity 0.7s ease 0.15s, visibility 0.7s ease 0.15s;
+}
+
+.boot-screen--exit {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.boot-screen__panel {
+  margin: 0;
+  width: fit-content;
+  max-width: min(26rem, 100%);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: clamp(0.875rem, 0.82rem + 0.35vw, 0.9375rem);
+  font-weight: 500;
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  transition: opacity 0.2s ease;
+}
+
+.boot-screen--exit .boot-screen__panel {
+  opacity: 0;
+}
+
+.boot-screen__line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.45em;
+  align-items: start;
+}
+
+.boot-screen__line--bar {
+  display: block;
+  margin-top: 0.4rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.boot-screen__glyph {
+  color: #fff;
+  line-height: inherit;
+}
+
+.boot-screen__text {
+  min-width: 0;
+}
+
+.boot-screen__bracket {
+  color: #888;
+}
+
+.boot-screen__bar-fill {
+  color: #fff;
+}
+
+.boot-screen__bar-empty {
+  color: #444;
+}
+
+.boot-screen__pct {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.boot-screen__error {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+
+.boot-screen__line--error {
+  color: #fff;
+  font-weight: 600;
+}
+
+.boot-screen__line--hint {
+  color: #888;
+}
+
+.boot-screen__line--hint .boot-screen__glyph {
+  color: #888;
+}
+
+.boot-screen__line--blink-off {
+  visibility: hidden;
+}
+
+.boot-screen__ellipsis {
+  display: inline-block;
+  min-width: 3ch;
+}
+
+.boot-screen__caret {
+  display: inline-block;
+  margin-left: 0.05em;
+  color: #fff;
+  animation: boot-caret 0.7s steps(1) infinite;
+}
+
+@keyframes boot-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (width <= 24rem) {
+  .boot-screen {
+    padding:
+      max(1rem, env(safe-area-inset-top, 0px))
+      max(1rem, env(safe-area-inset-right, 0px))
+      max(1rem, env(safe-area-inset-bottom, 0px))
+      max(1rem, env(safe-area-inset-left, 0px));
+  }
+
+  .boot-screen__panel {
+    width: 100%;
+    max-width: 100%;
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-screen,
+  .app-shell {
+    transition: none;
+  }
+
+  .boot-screen__caret {
+    animation: none;
+  }
 }
 
 .ascii-bg {

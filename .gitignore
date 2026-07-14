@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# local boot preview artifacts
+boot-preview.*
+tmp-boot-*/
+tmp-fade-*.png
+tmp-qa-*.png
